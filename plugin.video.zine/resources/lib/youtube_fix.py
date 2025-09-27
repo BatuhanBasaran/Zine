@@ -19,6 +19,9 @@ def YT():
         sys.exit()
 
     addon_id='plugin.video.Zine'
+    api_key='AIzaSyDnlJ0e_CZlLoZm7CMNnO41xInZgVFyObo'
+    client_id='869922081769-d392du3vu6c8cpmtll11rpd7f09deu1n.apps.googleusercontent.com'
+    client_secret='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'
 
     if apikey == '' or apikey == None:
         try:
