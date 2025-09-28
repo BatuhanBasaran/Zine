@@ -15,6 +15,7 @@ from resources.lib.gui.guiElement import cGuiElement
 from resources.lib.gui.gui import cGui
 from resources.lib.config import cConfig
 from resources.lib.tools import logger, cParser, cCache
+from resources.lib.search_history import load as hist_load, add as hist_add, clear as hist_clear
 
 try:
     import resolveurl as resolver
@@ -75,6 +76,7 @@ def parseUrl():
             from resources.lib import tools
             tools.devWarning()
             return
+        
             
     elif params.exist('remoteplayurl'):
         try:
@@ -158,6 +160,13 @@ def parseUrl():
         for folder in settingsGuiElements():
             oGui.addFolder(folder)
         oGui.setEndOfDirectory()
+    elif sSiteName == 'history':
+        # Funktionen: history_menu, history_repeat, history_clear
+        function = globals().get(sFunction)
+        if function:
+            function()
+        return
+    
     else:
         # Else load any other site as plugin and run the function
         plugin = __import__(sSiteName, globals(), locals())
@@ -508,3 +517,61 @@ def _pluginSearch(pluginEntry, sSearchText, oGui):
         log(cConfig().getLocalizedString(30166) + ' -> [Zine]: ' + pluginEntry['name'] + ': search failed', LOGERROR)
         import traceback
         log(traceback.format_exc())
+
+def history_menu():
+    from resources.lib.gui.guiElement import cGuiElement
+    from resources.lib.gui.gui import cGui
+    from resources.lib.handler.ParameterHandler import ParameterHandler
+
+    p = ParameterHandler()
+    site_id = p.getValue('site_for_history')  # z.B. 'aniworld'
+    items = hist_load(site_id)
+    oGui = cGui()
+    if not items:
+        oGui.showInfo()
+        oGui.setEndOfDirectory()
+        return
+
+    total = len(items)
+    for q in items:
+        elem = cGuiElement(q, 'history', 'history_repeat')
+        params_local = ParameterHandler()
+        params_local.setParam('site_for_history', site_id)
+        params_local.setParam('q', q)
+        oGui.addFolder(elem, params_local, True, total)
+
+    # Clear
+    clear = cGuiElement('Delete history', 'history', 'history_clear')
+    params_clear = ParameterHandler()
+    params_clear.setParam('site_for_history', site_id)
+    oGui.addFolder(clear, params_clear)
+
+    oGui.setEndOfDirectory()
+
+def history_repeat():
+    # ruft die _search(site) des Ziel-Site-Moduls auf
+    from resources.lib.handler.ParameterHandler import ParameterHandler
+    from resources.lib.gui.gui import cGui
+    p = ParameterHandler()
+    site_id = p.getValue('site_for_history')
+    q = p.getValue('q')
+    if not site_id or not q:
+        return
+    # optional: wieder zur Historie hinzufügen (nach oben ziehen)
+    from resources.lib.search_history import add as hist_add
+    hist_add(site_id, q)
+
+    # Zielmodul importieren und _search(oGui=False, sSearchText=q) aufrufen
+    plugin = __import__(site_id, globals(), locals())
+    func = getattr(plugin, '_search')
+    func(False, q)  # Site baut eigenes GUI
+    cGui().setEndOfDirectory()
+
+def history_clear():
+    from resources.lib.handler.ParameterHandler import ParameterHandler
+    from resources.lib.gui.gui import cGui
+    p = ParameterHandler()
+    site_id = p.getValue('site_for_history')
+    if site_id:
+        hist_clear(site_id)
+    cGui().showInfo('Info', 'History deleted.')        

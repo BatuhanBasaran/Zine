@@ -14,12 +14,15 @@
 
 import xbmcgui
 
+
 from resources.lib.handler.ParameterHandler import ParameterHandler
 from resources.lib.handler.requestHandler import cRequestHandler
 from resources.lib.tools import logger, cParser, cUtil
 from resources.lib.gui.guiElement import cGuiElement
 from resources.lib.config import cConfig
 from resources.lib.gui.gui import cGui
+from resources.lib.search_history import add as hist_add
+
 
 SITE_IDENTIFIER = 'aniworld'
 SITE_NAME = 'AniWorld'
@@ -45,27 +48,40 @@ REFERER = 'https://' + DOMAIN
 
 #
 
-def load(): # Menu structure of the site plugin
+def load():
     logger.info('Load %s' % SITE_NAME)
     params = ParameterHandler()
-    username = cConfig().getSetting('aniworld.user')    # Username
-    password = cConfig().getSetting('aniworld.pass')    # Password
-    if username == '' or password == '':                # If no username and password were set, close the plugin!
-        xbmcgui.Dialog().ok(cConfig().getLocalizedString(30241), cConfig().getLocalizedString(30263))   # Info Dialog!
-    else:
-        params.setParam('sUrl', URL_SERIES)
-        cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30518), SITE_IDENTIFIER, 'showAllSeries'), params)    # All Series
-        params.setParam('sUrl', URL_NEW_EPISODES)
-        cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30516), SITE_IDENTIFIER, 'showNewEpisodes'), params)  # New Episodes
-        params.setParam('sUrl', URL_POPULAR)
-        cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30519), SITE_IDENTIFIER, 'showEntries'), params)    # Popular Series
-        params.setParam('sUrl', URL_MAIN)
-        params.setParam('sCont', 'catalogNav')
-        cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30517), SITE_IDENTIFIER, 'showValue'), params)    # From A-Z
-        params.setParam('sCont', 'homeContentGenresList')
-        cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30506), SITE_IDENTIFIER, 'showValue'), params)    # Genre
-        cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30520), SITE_IDENTIFIER, 'showSearch'), params)   # Search
-        cGui().setEndOfDirectory()
+    username = cConfig().getSetting('aniworld.user')
+    password = cConfig().getSetting('aniworld.pass')
+    if username == '' or password == '':
+        xbmcgui.Dialog().ok(cConfig().getLocalizedString(30241), cConfig().getLocalizedString(30263))
+        return
+
+    params.setParam('sUrl', URL_SERIES)
+    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30518), SITE_IDENTIFIER, 'showAllSeries'), params)
+
+    params = ParameterHandler(); params.setParam('sUrl', URL_NEW_EPISODES)
+    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30516), SITE_IDENTIFIER, 'showNewEpisodes'), params)
+
+    params = ParameterHandler(); params.setParam('sUrl', URL_POPULAR)
+    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30519), SITE_IDENTIFIER, 'showEntries'), params)
+
+    params = ParameterHandler(); params.setParam('sUrl', URL_MAIN); params.setParam('sCont', 'catalogNav')
+    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30517), SITE_IDENTIFIER, 'showValue'), params)
+
+    params = ParameterHandler(); params.setParam('sUrl', URL_MAIN); params.setParam('sCont', 'homeContentGenresList')
+    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30506), SITE_IDENTIFIER, 'showValue'), params)
+
+    # Suche
+    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30520), SITE_IDENTIFIER, 'showSearch'), ParameterHandler())
+
+    # Verlauf -> zentrales History-Modul
+    hist_elem = cGuiElement('History', 'history', 'history_menu')
+    hist_params = ParameterHandler()
+    hist_params.setParam('site_for_history', SITE_IDENTIFIER)
+    cGui().addFolder(hist_elem, hist_params, True)
+
+    cGui().setEndOfDirectory()
 
 
 def showValue():
@@ -427,12 +443,14 @@ def getHosterUrl(hUrl):
 def showSearch():
     sSearchText = cGui().showKeyBoard(sHeading=cConfig().getLocalizedString(30281))
     if not sSearchText: return
+    hist_add(SITE_IDENTIFIER, sSearchText)
     _search(False, sSearchText)
     cGui().setEndOfDirectory()
 
 
 def _search(oGui, sSearchText):
     SSsearch(oGui, sSearchText)
+
 
 
 def SSsearch(sGui=False, sSearchText=False):
@@ -512,3 +530,4 @@ def getMetaInfo(link, title):   # Setzen von Metadata in Suche:
 
     for sImg, sDescr in aResult[1]:
         return sImg, sDescr
+    
